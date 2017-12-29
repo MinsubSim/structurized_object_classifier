@@ -6,9 +6,6 @@ class BaseStruct(object):
   def __init__(self, vector_size):
     super(BaseStruct, self).__init__()
 
-  def model(self):
-    pass
-
   def feed(self, input_data):
     pass
 
@@ -16,8 +13,13 @@ class BaseStruct(object):
     pass
 
 
+
 class ListStruct(BaseStruct):
-  def __init__(self, elem, vector_size=100):
+  def __init__(self,
+               elem,
+               vector_siz,
+               list_length,
+               ):
     super(ListStruct, self).__init__(vector_size=vector_size)
     self.elem = elem
     self.vector_size = vector_size
@@ -26,35 +28,55 @@ class ListStruct(BaseStruct):
     outputs, state = tf.nn.dynamic_rnn(cell, input_tensors
                                        dtype=tf.float32)
     self.output_tensor = outputs[:, -1, :]
+    self.seq_len_stack = []
+
+  def feed(self, input_data):
+    self.seq_len_stack.append(len(input_data))
+    for elem_data in input_data:
+      self.elem.feed(elem_data)
+
 
 
 class DictStruct(BaseStruct):
-  def __init__(self, shape, vector_size=100):
+  def __init__(self,
+               shape,
+               vector_size,
+               ):
     super(DictStruct, self).__init__()
     self.shape = shape
     self.vector_size = vector_size
 
     with tf.name_scope("DictStruct"):
-      elem_list = sorted(self.shape.items(), key=lambda x: x[0])
-      input_tensor = tf.concat([elem.model() for _, elem in elem_list])
+      self.key_list = sorted(self.shape.keys())
+      self.input_tensor = tf.concat([self.shape[key].model() for key in key_list])
       self.output_tensor = tf.contrib.layers.fully_connected(inputs=input_tensor,
                                                              num_outputs=self.vector_size)
+
+  def feed(self, input_data):
+    for key in key_list:
+      self.shape[key].feed(input_data[key])
+
 
 
 class IndexStruct(BaseStruct):
   def __init__(self,
-               vector_size=100,
+               vector_size,
                ):
     super(IndexStruct, self).__init__()
     self.vector_size = vector_size
     with tf.name_scope("IndexStruct"):
       self.input_tensor = tf.placeholder(tf.float32, [None])
     self.output_tensor = tf.one_hot(input=self.input_tensor, depth=self.vector_size)
+    self.data_stack = []
+
+  def feed(self, input_data):
+    self.data_stack.append(input_data)
+
 
 
 class FigureStruct(BaseStruct):
   def __init__(self,
-               vector_size=100,
+               vector_size,
                ):
     super(FigureStruct, self).__init__()
     with tf.name_scope("FigureStruct"):
@@ -62,11 +84,15 @@ class FigureStruct(BaseStruct):
       self.expand_var = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1),
                                     name='expand')
     self.output_tensor = tf.matmul(self.input_tensor, self.expand_var)
+    self.data_stack = []
+
+  def feed(self, input_data):
+    self.data_stack.append(input_data)
 
 
 class StringStruct(BaseStruct):
   def __init__(self,
-               vector_size=100,
+               vector_size,
                string_length,
                char_depth,
                filter_size,
@@ -111,3 +137,8 @@ class StringStruct(BaseStruct):
                               name='pool')
 
     self.output_tensor = tf.nn.dropout(pooled, self.dropout_var)
+    self.data_stack = []
+
+  def feed(self, input_data):
+    v_dat = vector_encode(input_data, string_length)
+    self.data_stack.append(v_dat)
