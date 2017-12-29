@@ -11,11 +11,11 @@ class SOCCell(tf.contrib.rnn.RNNCell):
     model_o = self.model(input_tensor, self.dropout_var)
     return model_o, state
 
-  def transform(self, obj):
-    return ([int(obj or 0)],)
-
   def model(self, input_tensor, dropout_var):
     pass
+
+  def transform(self, obj):
+    return ([int(obj or 0)],)
 
   @property
   def state_size(self):
@@ -34,29 +34,35 @@ class SOCListCell(SOCCell):
                ):
     super(SOCListCell, self).__init__(vector_size)
     self.elem = elem
-    self.tensor_shape = [(None, None) + s for s in self.elem.tensor_shape]
+    self.tensor_shape = [(list_length, ) + s for s in self.elem.tensor_shape] + [()]
     self.list_length = list_length
 
   def model(self, input_tensor, dropout_var):
     with tf.name_scope("ListStruct"):
       cells = [self.elem]
-      for _ in range(2):
-          cell = tf.contrib.rnn.GRUCell(num_units=self.vector_size)
-          #if not cells:
+      for i in range(2):
+          cell = tf.contrib.rnn.LSTMCell(num_units=self.vector_size)
+          if i == 0:
               # Add attention wrapper to first layer.
-          #    cell = tf.contrib.rnn.AttentionCellWrapper(cell, 50, state_is_tuple=True)
+              cell = tf.contrib.rnn.AttentionCellWrapper(cell, 32, state_is_tuple=True)
           cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=dropout_var)
           cells.append(cell)
-
+      
+      sequence_length = input_tensor[-1]
+      data_tensor = input_tensor[:-1]
+    
       elem_cell = tf.contrib.rnn.MultiRNNCell(cells)
-      elem_cell.dropout_var = dropout_var
-      output, _ = tf.nn.dynamic_rnn(elem_cell,
-                                    input_tensor,
-                                    time_major=True,
-                                    dtype=tf.float32)
-
-      output = output[:, -1, :]
-      return output
+      self.elem.dropout_var = dropout_var
+      output, state = tf.nn.dynamic_rnn(elem_cell,
+                                        data_tensor,
+                                        sequence_length=sequence_length,
+                                        dtype=tf.float32)
+      
+      batch_range = tf.range(tf.shape(output)[0])
+      indices = tf.stack([batch_range, sequence_length-1], axis=1)
+      res = tf.gather_nd(output, indices)
+      self.test = [output, res, sequence_length]
+      return res
 
   def transform(self, obj):
     res = [[] for _ in self.tensor_shape]
@@ -67,13 +73,14 @@ class SOCListCell(SOCCell):
     dat = self.elem.transform(None)
     for i, t in enumerate(dat):
       res[i] += [t] * (self.list_length - len(obj))
+    res[-1] = min(len(obj), self.list_length)
     return res
 
 ####
 class SOCDictCell(SOCCell):
   def __init__(self,
                vector_size,
-              struct,
+               struct,
                ):
     super(SOCDictCell, self).__init__(vector_size)
     key_list = sorted(struct.keys())
@@ -195,6 +202,7 @@ class SOCStringCell(SOCCell):
                               strides=[1, 1, 1, 1],
                               padding='VALID',
                               name='pool')
+      pooled = tf.nn.dropout(pooled, dropout_var)
 
       return tf.squeeze(pooled, [1, 2])
 
