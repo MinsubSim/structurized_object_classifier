@@ -1,15 +1,15 @@
-from cell import *
+from units import *
 
 
 class SOCModel:
-  def __init__(self, struct, label_size, dropout_prob, learning_rate):
+  def __init__(self, struct, label_size, dropout_prob, learning_rate, num_gpus):
     self.struct = struct
     self.data_stack = []
     self.dropout_prob = dropout_prob
     self.dropout_var = tf.placeholder(dtype=tf.float32)
     self.label_size = label_size
-    self.num_gpus = 4
-    
+    self.num_gpus = num_gpus
+
     input_tensor = [tf.placeholder(shape=(None,)+s, dtype=tf.int32) for s in self.struct.tensor_shape]
     self.input_tensors = []
     self.label_tensors = []
@@ -40,7 +40,7 @@ class SOCModel:
     self.eval_set = [self.train_op, self.loss_mean, self.accuracy]
 
   def tower_loss(self, scope, input_tensor, label_tensor):
-    output = self.struct.model(input_tensor , self.dropout_var)
+    output = self.struct.model(input_tensor, self.dropout_var)
     W = tf.get_variable('W',
                         shape=(self.struct.vector_size, self.label_size),
                         initializer=tf.glorot_normal_initializer())
@@ -62,7 +62,6 @@ class SOCModel:
 
   def batch(self, batch_size):
     input_data = [[] for _ in self.struct.tensor_shape]
-
     label_data = []
     meta_data = []
     for dat, label, meta in self.data_stack[:batch_size]:
@@ -72,3 +71,33 @@ class SOCModel:
       meta_data.append(meta)
     del self.data_stack[:batch_size]
     return input_data, label_data, meta_data
+
+  def train(self, sess, batch_size):
+    input_data, label_data, meta_data = self.batch(batch_size)
+    feed_dict = {
+      self.dropout_var: self.dropout_prob,
+    }
+    meta_list = []
+    for gpu_idx in range(self.num_gpus):
+      input_data, label_data, meta_data = self.batch(batch_size)
+      meta_list += meta_data
+      feed_dict[self.label_tensors[gpu_idx]] = label_data
+      for x, y in zip(self.input_tensors[gpu_idx], input_data):
+        feed_dict[x] = y
+    res = sess.run(self.eval_set, feed_dict=feed_dict)
+    return res, meta_list
+
+  def evaluate(self, sess, batch_size):
+    input_data, label_data, meta_data = self.batch(batch_sdize)
+    feed_dict = {
+      self.dropout_var: 1.0,
+    }
+    meta_list = []
+    for gpu_idx in range(self.num_gpus):
+      input_data, label_data, meta_data = self.batch(batch_size)
+      meta_list += meta_data
+      feed_dict[self.label_tensors[gpu_idx]] = label_data
+      for x, y in zip(self.input_tensors[gpu_idx], input_data):
+        feed_dict[x] = y
+    res = sess.run(self.eval_set, feed_dict=feed_dict)
+    return res, meta_list

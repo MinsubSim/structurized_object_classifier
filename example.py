@@ -1,88 +1,47 @@
-from cell import *
+import pickle
+with open('soc_Sample', 'rb') as f:
+  alldata = pickle.load(f)
+
+sls =  [0, 1, 2, 4, 7]
+from units import *
 from model import *
+import modules
 
-obj_structure = SOCListCell(
-    vector_size=100,
-    list_length=200,
-    elem=SOCDictCell(
-      vector_size=100,
-      struct={
-        'is_suspect': SOCIndexCell(vector_size=100),
-        'create_at': SOCFigureCell(vector_size=100),
-        'msg': SOCStringCell(vector_size=100,
-                             string_length=100,
-                             embedding_size=300,
-                             char_depth=12345,
-                             filter_size=30),
-        #'img': ImageStruct()
-      })
-      )
+tf.reset_default_graph()
+obj_structure = SOCListUnit(
+  vector_size=50,
+  unit_model=modules.sequence.BasicRNNModule(),
+  list_length=50,
+  elem=SOCDictUnit(
+    vector_size=50,
+    unit_model=modules.hashmap.ConcatFCNModule(),
+    struct={
+      'u': SOCIntegerUnit(vector_size=2,
+                          unit_model=modules.number.OneHotModule()),
+      's': SOCIntegerUnit(vector_size=5,
+                          unit_model=modules.number.ExpansionModule()),
+      'm': SOCStringUnit(vector_size=50,
+                         unit_model=modules.string.BasicCNNModule(char_depth=11682, embedding_size=100, filter_size=50),
+                         string_encoder=modules.string.string_encode,
+                         string_length=1000),
+      #'img': ImageStruct()
+    })
+    )
 
-import random
-soc_model = SOCModel(struct=obj_structure, dropout_prob=0.9, label_size=2, learning_rate=1e-4)
 
-data_list = []
 
-for i in range(500):
-  obj = []
-  cur_time = random.randint(100000,200000)
-  for j in range(30):
-    cur_time += random.randint(1000,10000)
-    msg = ''.join(chr(random.randint(0,25)+ord('a')) for _ in range(random.randint(50, 100)))
-    t = {
-      'is_suspect': random.randint(0,1),
-      'create_at': cur_time,
-      'msg': msg,
-    }
-    obj.append(t)
-  data_list.append((obj, 0))
 
-for i in range(500):
-  obj = []
-  cur_time = random.randint(100000,200000)
-  msg = ''.join(chr(random.randint(0,25)+ord('a')) for _ in range(random.randint(1, 30)))
-  for j in range(30):
-    cur_time += random.randint(10,100)
-    iss = 0 if random.randint(0,10) == 0 else 1
-    msg = ''.join(chr(random.randint(0,25)+ord('a')) for _ in range(random.randint(50, 100)))
-    t = {
-      'is_suspect': 0 if random.randint(0,10) == 0 else 1,
-      'create_at': cur_time,
-      'msg': ''.join(chr(random.randint(0,25)+ord('a')) for _ in range(random.randint(50, 100))),
-    }
-    if iss == 1:
-      t['msg'] = msg * random.randint(1, 10)
-    obj.append(t)
-  data_list.append((obj, 1))
+soc_model = SOCModel(struct=obj_structure, dropout_prob=0.9, label_size=len(sls), learning_rate=1e-4, num_gpus=4)
+soc_model.data_stack = alldata
+total_data_size = len(alldata)
 
-random.shuffle(data_list)
-
-input_data, label_data = zip(*data_list)
-
-#print(input_data[:10])
-#print(label_data[:10])
-
-soc_model.insert(input_data, label_data)
-
+print('start!')
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
-config.log_device_placement = True
-config.allow_soft_placement = True
-
 
 with tf.Session(config=config) as sess:
   init = tf.global_variables_initializer()
-  sess.run(init)
+  for i in range(100):
+    print(soc_model.train(sess, 10))
 
-  for _ in range(100):
-    input_data, label_data = soc_model.batch(10)
-    feed_dict = {
-      soc_model.label_tensor: label_data,
-      soc_model.dropout_var: 0.9,
-    }
-
-    for x, y in zip(soc_model.input_tensor, input_data):
-      feed_dict[x] = y
-
-    res = sess.run(soc_model.eval_set, feed_dict=feed_dict)
-    print(res)
+  print(soc_model.evaluate(sess, 100))

@@ -3,11 +3,12 @@ import tensorflow as tf
 
 class SOCUnit(tf.contrib.rnn.RNNCell):
   def __init__(self,
-               vector_size
-
+               vector_size,
+               unit_model,
                ):
     super(SOCUnit, self).__init__()
     self.vector_size = vector_size
+    self.unit_model = unit_model
     self.dropout_var = None
 
   def __call__(self, input_tensor, state):
@@ -16,7 +17,7 @@ class SOCUnit(tf.contrib.rnn.RNNCell):
 
 
   def model(self, input_tensor, dropout_var):
-    self.unit_model(self, input_tensor, dropout_var)
+    return self.unit_model.build(self, input_tensor, dropout_var)
 
   def transform(self, obj):
     return ([int(obj or 0)],)
@@ -110,7 +111,6 @@ class SOCStringUnit(SOCUnit):
                unit_model,
                string_length,
                string_encoder,
-               unit_model,
                ):
     super(SOCStringUnit, self).__init__(vector_size, unit_model)
     self.string_encoder = string_encoder
