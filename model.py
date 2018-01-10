@@ -10,11 +10,10 @@ class SOCModel:
     self.label_size = label_size
     self.num_gpus = 4
     
-    
     input_tensor = [tf.placeholder(shape=(None,)+s, dtype=tf.int32) for s in self.struct.tensor_shape]
     self.input_tensors = []
     self.label_tensors = []
-    
+
     # Calculate the gradients for each model tower.
     loss_list = []
     pred_list = []
@@ -63,7 +62,7 @@ class SOCModel:
 
   def batch(self, batch_size):
     input_data = [[] for _ in self.struct.tensor_shape]
-    
+
     label_data = []
     meta_data = []
     for dat, label, meta in self.data_stack[:batch_size]:
