@@ -38,9 +38,11 @@ total_data_size = len(alldata)
 print('start!')
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
+config.allow_soft_placement = True
 
 with tf.Session(config=config) as sess:
   init = tf.global_variables_initializer()
+  sess.run(init)
   for i in range(100):
     print(soc_model.train(sess, 10))
 
