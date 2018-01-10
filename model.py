@@ -1,4 +1,5 @@
 from units import *
+import numpy
 
 
 class SOCModel:
@@ -10,7 +11,6 @@ class SOCModel:
     self.label_size = label_size
     self.num_gpus = num_gpus
 
-    input_tensor = [tf.placeholder(shape=(None,)+s, dtype=tf.int32) for s in self.struct.tensor_shape]
     self.input_tensors = []
     self.label_tensors = []
 
@@ -22,7 +22,7 @@ class SOCModel:
       for i in range(self.num_gpus):
         with tf.device('/gpu:%d' % i):
           with tf.name_scope('soc_%d' % (i)) as scope:
-            input_tensor = [tf.placeholder(shape=(None,)+s, dtype=tf.int32) for s in self.struct.tensor_shape]
+            input_tensor = [tf.placeholder(shape=(None,)+s, dtype=t) for s, t in self.struct.tensor_shape]
             label_tensor = tf.placeholder(shape=[None], dtype=tf.int32)
             self.input_tensors.append(input_tensor)
             self.label_tensors.append(label_tensor)
@@ -82,7 +82,7 @@ class SOCModel:
       meta_list += meta_data
       feed_dict[self.label_tensors[gpu_idx]] = label_data
       for x, y in zip(self.input_tensors[gpu_idx], input_data):
-        feed_dict[x] = y
+        feed_dict[x] = numpy.asarray(y, x.dtype.as_numpy_dtype)
     res = sess.run(self.eval_set, feed_dict=feed_dict)
     return res, meta_list
 

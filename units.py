@@ -40,7 +40,7 @@ class SOCListUnit(SOCUnit):
                ):
     super(SOCListUnit, self).__init__(vector_size, unit_model)
     self.elem = elem
-    self.tensor_shape = [(list_length,) + s for s in self.elem.tensor_shape] + [()]
+    self.tensor_shape = [((list_length,) + s, t) for s, t in self.elem.tensor_shape] + [((), tf.int32)]
     self.list_length = list_length
 
   def transform(self, obj):
@@ -92,7 +92,7 @@ class SOCIntegerUnit(SOCUnit):
                unit_model,
                ):
     super(SOCIntegerUnit, self).__init__(vector_size, unit_model)
-    self.tensor_shape = [(1,)]
+    self.tensor_shape = [((1,), tf.int32)]
 
 
 ####
@@ -102,7 +102,7 @@ class SOCFloatUnit(SOCUnit):
                unit_model,
                ):
     super(SOCFloatUnit, self).__init__(vector_size, unit_model)
-    self.tensor_shape = [(1,)]
+    self.tensor_shape = [((1,), tf.float32)]
 
 ####
 class SOCStringUnit(SOCUnit):
@@ -116,7 +116,7 @@ class SOCStringUnit(SOCUnit):
     self.string_encoder = string_encoder
     self.string_length = string_length
     self.string_encoder = string_encoder
-    self.tensor_shape = [(string_length, )]
+    self.tensor_shape = [((string_length, ), tf.int32)]
 
   def transform(self, obj):
     obj = obj or ''
@@ -127,10 +127,14 @@ class SOCStringUnit(SOCUnit):
 class SOCImageUnit(SOCUnit):
   def __init__(self,
                vector_size,
-               unit_model):
+               unit_model,
+               base_dir,
                ):
     super(SOCImageUnit, self).__init__(vector_size, unit_model)
-    self.tensor_shape = [(unit_model.bottleneck_size, )]
-
+    self.tensor_shape = [((unit_model.bottleneck_size, ), tf.float32)]
+    self.base_dir = base_dir
+  
   def transform(self, obj):
-    return self.unit_model.decode(obj)
+    if obj is None:
+      return ([0.0]*2048,)
+    return (obj,)
