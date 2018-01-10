@@ -2,6 +2,27 @@ import tensorflow as tf
 
 
 class SOCUnit(tf.contrib.rnn.RNNCell):
+
+  class UnitShape:
+    def __init__(self, optional):
+      self.tensor_info = []
+      if optional:
+        self.add_element(shape=(), dtype=tf.int32, name='existance')
+
+    def add_element(self, shape, dtype, name='existance'):
+      self.tensor_info.append({
+        'shape': shape,
+        'dtype': dtype,
+        'name': name,
+      })
+
+    def zeros(self):
+      return [np.zeros(e['shape']) for e in self.tensor_info]
+
+    def transform(self, obj):
+      pass
+
+
   def __init__(self,
                vector_size,
                unit_model,
@@ -15,9 +36,14 @@ class SOCUnit(tf.contrib.rnn.RNNCell):
     model_o = self.model(input_tensor, self.dropout_var)
     return model_o, state
 
-
   def model(self, input_tensor, dropout_var):
     return self.unit_model.build(self, input_tensor, dropout_var)
+
+  def transform(self, obj):
+    if obj is None:
+      return self.tensor_shape.zeros()
+    else:
+      return self.tensor_shape.transform(obj)
 
   def transform(self, obj):
     return ([int(obj or 0)],)
@@ -30,17 +56,34 @@ class SOCUnit(tf.contrib.rnn.RNNCell):
   def output_size(self):
       return self.vector_size
 
+
 ####
 class SOCListUnit(SOCUnit):
+
+  class ListUnitShape(UnitShape):
+    def __init__(self, max_length, elem, optional):
+      super().__init__(optional)
+      self.add_element(shape=(), dtype=tf.int32, name='seq_len')
+      for ei in self.tensor_info:
+        self.add_element(shape=(max_length,)+ei['shape'],
+                         dtype=ei['dtype'],
+                         name='list[%d].%s'%(max_length, ei['name']))
+
+    def transform(self, obj):
+      output = super().transform(obj_list)
+      output.append((len(obj_list),))
+      output += [np.stack(al) for al in zip(*[elem.transform(o) for o in obj])]
+      return output
+
   def __init__(self,
                vector_size,
                unit_model,
                list_length,
                elem,
                ):
-    super(SOCListUnit, self).__init__(vector_size, unit_model)
+    super().__init__(vector_size, unit_model)
     self.elem = elem
-    self.tensor_shape = [((list_length,) + s, t) for s, t in self.elem.tensor_shape] + [((), tf.int32)]
+    self.tensor_shape = [((list_length,) + s, t) for s, t in self.elem.tensor_shape] + [((), tf.int32), ((), tf.int32)]
     self.list_length = list_length
 
   def transform(self, obj):
@@ -54,6 +97,7 @@ class SOCListUnit(SOCUnit):
       res[i] += [t] * (self.list_length - len(obj))
     res[-1] = min(len(obj), self.list_length)
     return res
+
 
 ####
 class SOCDictUnit(SOCUnit):
@@ -85,6 +129,7 @@ class SOCDictUnit(SOCUnit):
         res[i] = t
     return res
 
+
 ####
 class SOCIntegerUnit(SOCUnit):
   def __init__(self,
@@ -103,6 +148,7 @@ class SOCFloatUnit(SOCUnit):
                ):
     super(SOCFloatUnit, self).__init__(vector_size, unit_model)
     self.tensor_shape = [((1,), tf.float32)]
+
 
 ####
 class SOCStringUnit(SOCUnit):
@@ -133,7 +179,7 @@ class SOCImageUnit(SOCUnit):
     super(SOCImageUnit, self).__init__(vector_size, unit_model)
     self.tensor_shape = [((unit_model.bottleneck_size, ), tf.float32)]
     self.base_dir = base_dir
-  
+
   def transform(self, obj):
     if obj is None:
       return ([0.0]*2048,)
