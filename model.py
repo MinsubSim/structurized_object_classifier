@@ -61,20 +61,14 @@ class SOCModel:
       self.data_stack.append((res, label, meta))
 
   def batch(self, batch_size):
-    input_data = [[] for _ in self.struct.tensor_shape]
-    label_data = []
-    meta_data = []
-    for dat, label, meta in self.data_stack[:batch_size]:
-      for i, d in enumerate(dat):
-        input_data[i].append(d)
-      label_data.append(label)
-      meta_data.append(meta)
+    input_data, label_data, meta_data = zip(*self.data_stack[:batch_size])
     del self.data_stack[:batch_size]
+    input_data = zip(*input_data)
     return input_data, label_data, meta_data
 
-  def train(self, sess, batch_size):
+  def run(self, sess, batch_size, dropout_prob):
     feed_dict = {
-      self.dropout_var: self.dropout_prob,
+      self.dropout_var: dropout_prob,
     }
     meta_list = []
     for gpu_idx in range(self.num_gpus):
@@ -86,16 +80,8 @@ class SOCModel:
     res = sess.run(self.eval_set, feed_dict=feed_dict)
     return res, meta_list
 
+  def train(self, sess, batch_size):
+    return self.run(sess, batch_size, self.dropout_prob)
+
   def evaluate(self, sess, batch_size):
-    feed_dict = {
-      self.dropout_var: 1.0,
-    }
-    meta_list = []
-    for gpu_idx in range(self.num_gpus):
-      input_data, label_data, meta_data = self.batch(batch_size)
-      meta_list += meta_data
-      feed_dict[self.label_tensors[gpu_idx]] = label_data
-      for x, y in zip(self.input_tensors[gpu_idx], input_data):
-        feed_dict[x] = y
-    res = sess.run(self.eval_set, feed_dict=feed_dict)
-    return res, meta_list
+    return self.run(sess, batch_size, 1.0)

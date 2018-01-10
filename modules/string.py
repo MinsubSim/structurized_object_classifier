@@ -8,7 +8,7 @@ from . import UnitModule
 
 '''
 
-def string_encode(self, string, length):
+def string_encode(string, length):
   MATCH_MAP = [(0x1100, 0x11FF), (0xAC00, 0xD7A4), (0x0000, 0x00FF)] # 11682
   STR_DEPTH2 = 11682
   r = []
