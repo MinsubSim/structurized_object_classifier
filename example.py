@@ -43,7 +43,9 @@ config.allow_soft_placement = True
 with tf.Session(config=config) as sess:
   init = tf.global_variables_initializer()
   sess.run(init)
-  for i in range(100):
+  for i in range(1000):
     print(soc_model.train(sess, 10))
-
-  print(soc_model.evaluate(sess, 100))
+    
+  print('eval')
+  for i in range(10):
+    print(soc_model.evaluate(sess, 10))

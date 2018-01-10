@@ -73,7 +73,6 @@ class SOCModel:
     return input_data, label_data, meta_data
 
   def train(self, sess, batch_size):
-    input_data, label_data, meta_data = self.batch(batch_size)
     feed_dict = {
       self.dropout_var: self.dropout_prob,
     }
@@ -88,7 +87,6 @@ class SOCModel:
     return res, meta_list
 
   def evaluate(self, sess, batch_size):
-    input_data, label_data, meta_data = self.batch(batch_size)
     feed_dict = {
       self.dropout_var: 1.0,
     }
