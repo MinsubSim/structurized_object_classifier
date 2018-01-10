@@ -61,7 +61,7 @@ class SOCListCell(SOCCell):
       batch_range = tf.range(tf.shape(output)[0])
       indices = tf.stack([batch_range, sequence_length-1], axis=1)
       res = tf.gather_nd(output, indices)
-      self.test = [output, res, sequence_length]
+      self.test = []
       return res
 
   def transform(self, obj):

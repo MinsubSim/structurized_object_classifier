@@ -28,26 +28,30 @@ class SOCModel:
     label_tensor_onehot = tf.one_hot(self.label_tensor, label_size)
 
     self.cross_entropy = tf.losses.softmax_cross_entropy(onehot_labels=label_tensor_onehot,
+                                                         label_smoothing=0.3,
                                                          logits=self.logit)
 
-    self.train_op = tf.train.AdamOptimizer(learning_rate).minimize(self.cross_entropy)
+    self.train_op = tf.train.AdamOptimizer(learning_rate=learning_rate,
+                                           ).minimize(self.cross_entropy)
     prediction = tf.argmax(tf.nn.softmax(self.logit), 1)
     correct_predictions = tf.equal(prediction, tf.cast(self.label_tensor, tf.int64))
     self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32))
-    self.eval_set = [self.train_op, self.logit, self.cross_entropy, self.accuracy, self.struct.test]
+    self.eval_set = [self.train_op, self.logit, self.cross_entropy, self.accuracy, prediction]
 
-  def insert(self, objects, labels):
-    for obj, label in zip(objects, labels):
+  def insert(self, objects, labels, metas):
+    for obj, label, meta in zip(objects, labels, metas):
       res = self.struct.transform(obj)
-      self.data_stack.append((res, label))
+      self.data_stack.append((res, label, meta))
 
   def batch(self, batch_size):
     input_data = [[] for _ in self.input_tensor]
     
     label_data = []
-    for dat, label in self.data_stack[:batch_size]:
+    meta_data = []
+    for dat, label, meta in self.data_stack[:batch_size]:
       for i, d in enumerate(dat):
         input_data[i].append(d)
       label_data.append(label)
+      meta_data.append(meta)
     del self.data_stack[:batch_size]
-    return input_data, label_data
+    return input_data, label_data, meta_data
