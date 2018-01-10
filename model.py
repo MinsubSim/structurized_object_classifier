@@ -8,35 +8,53 @@ class SOCModel:
     self.dropout_prob = dropout_prob
     self.dropout_var = tf.placeholder(dtype=tf.float32)
     self.label_size = label_size
-
-    self.input_tensor = [tf.placeholder(shape=(None,)+s, dtype=tf.int32) for s in self.struct.tensor_shape]
+    self.num_gpus = 4
     
-    output = self.struct.model(self.input_tensor , self.dropout_var)
+    
+    input_tensor = [tf.placeholder(shape=(None,)+s, dtype=tf.int32) for s in self.struct.tensor_shape]
+    self.input_tensors = []
+    self.label_tensors = []
+    
+    # Calculate the gradients for each model tower.
+    loss_list = []
+    pred_list = []
+    acc_list = []
+    with tf.variable_scope(tf.get_variable_scope()):
+      for i in range(self.num_gpus):
+        with tf.device('/gpu:%d' % i):
+          with tf.name_scope('soc_%d' % (i)) as scope:
+            input_tensor = [tf.placeholder(shape=(None,)+s, dtype=tf.int32) for s in self.struct.tensor_shape]
+            label_tensor = tf.placeholder(shape=[None], dtype=tf.int32)
+            self.input_tensors.append(input_tensor)
+            self.label_tensors.append(label_tensor)
+            loss, pred = self.tower_loss(scope, input_tensor, label_tensor)
+            loss_list.append(loss)
+            pred_list.append(pred)
+            correct_predictions = tf.equal(pred, tf.cast(label_tensor, tf.int64))
+            accuracy = tf.cast(correct_predictions, tf.float32)
+            acc_list.append(accuracy)
+            tf.get_variable_scope().reuse_variables()
+    self.loss_mean = tf.reduce_mean(loss_list)
+    self.accuracy = tf.reduce_mean(acc_list)
+    self.predictions = tf.concat(pred_list, axis=0)
+    self.train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self.loss_mean)
+    self.eval_set = [self.train_op, self.loss_mean, self.accuracy]
 
-    '''
-    self.logit = tf.contrib.layers.fully_connected(inputs=output, \
-                                               num_outputs=label_size)
-    '''
+  def tower_loss(self, scope, input_tensor, label_tensor):
+    output = self.struct.model(input_tensor , self.dropout_var)
     W = tf.get_variable('W',
-                        shape=(self.struct.vector_size, label_size),
+                        shape=(self.struct.vector_size, self.label_size),
                         initializer=tf.glorot_normal_initializer())
     b = tf.get_variable('b',
-                        shape=(label_size,),
+                        shape=(self.label_size,),
                         initializer=tf.glorot_normal_initializer())
-    self.logit = tf.matmul(output, W) + b
-    self.label_tensor = tf.placeholder(shape=[None], dtype=tf.int32)
-    label_tensor_onehot = tf.one_hot(self.label_tensor, label_size)
-
-    self.cross_entropy = tf.losses.softmax_cross_entropy(onehot_labels=label_tensor_onehot,
-                                                         label_smoothing=0.3,
-                                                         logits=self.logit)
-
-    self.train_op = tf.train.AdamOptimizer(learning_rate=learning_rate,
-                                           ).minimize(self.cross_entropy)
-    prediction = tf.argmax(tf.nn.softmax(self.logit), 1)
-    correct_predictions = tf.equal(prediction, tf.cast(self.label_tensor, tf.int64))
-    self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32))
-    self.eval_set = [self.train_op, self.logit, self.cross_entropy, self.accuracy, prediction]
+    logit = tf.matmul(output, W) + b
+    label_tensor_onehot = tf.one_hot(label_tensor, self.label_size)
+    cross_entropy = tf.losses.softmax_cross_entropy(onehot_labels=label_tensor_onehot,
+                                                    label_smoothing=0.1,
+                                                    logits=logit)
+    prediction = tf.argmax(tf.nn.softmax(logit), 1)
+    return cross_entropy, prediction
 
   def insert(self, objects, labels, metas):
     for obj, label, meta in zip(objects, labels, metas):
@@ -44,7 +62,7 @@ class SOCModel:
       self.data_stack.append((res, label, meta))
 
   def batch(self, batch_size):
-    input_data = [[] for _ in self.input_tensor]
+    input_data = [[] for _ in self.struct.tensor_shape]
     
     label_data = []
     meta_data = []
