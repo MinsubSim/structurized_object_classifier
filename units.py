@@ -16,7 +16,7 @@ class SOCUnit(tf.contrib.rnn.RNNCell):
     self.tensor_shape = []
     self.optional = optional
     if optional:
-      self.shape_add_element(shape=(), dtype=np.int32, name='existance')
+      self.shape_add_element(shape=(1,), dtype=np.int32, name='existance')
 
   def __call__(self, input_tensor, state):
     model_o = self.model(input_tensor, self.dropout_var)
@@ -45,15 +45,15 @@ class SOCUnit(tf.contrib.rnn.RNNCell):
       if self.optional:
         output += self.zeros()
       else:
-        raise 'non-optional attribute is missing'
+        raise ValueError('non-optional attribute is missing in %s' % (str(self)))
     else:
       if self.optional:
-        output.append(np.asarray(1))
+        output.append(np.asarray([1]))
       output += self._transform(obj)
     return output
 
   def _transform(self, obj):
-    return [np.asarray(obj)]
+    return [np.asarray([obj])]
 
   @property
   def state_size(self):
@@ -130,8 +130,11 @@ class SOCDictUnit(SOCUnit):
       for i, t in zip(self.tensor_index_map[key], sub_input):
         res[i] = t
     if any(r is None for r in res):
-      raise 'transform does not return complete tensor'
+      raise ValueError('transform does not return complete tensor')
     return res
+
+  def get_sub_input(self, input_tensor, sub_key):
+    return [input_tensor[i] for i in self.tensor_index_map[sub_key]]
 
 
 ####
@@ -144,7 +147,7 @@ class SOCIntegerUnit(SOCUnit):
     super().__init__(unit_model=unit_model,
                      vector_size=vector_size,
                      optional=optional)
-    self.shape_add_element(shape=(),
+    self.shape_add_element(shape=(1,),
                            dtype=np.int32,
                            name='integer')
 
@@ -159,7 +162,7 @@ class SOCFloatUnit(SOCUnit):
     super().__init__(unit_model=unit_model,
                      vector_size=vector_size,
                      optional=optional)
-    self.shape_add_element(shape=(),
+    self.shape_add_element(shape=(1,),
                            dtype=np.float32,
                            name='float')
 
@@ -202,3 +205,6 @@ class SOCImageUnit(SOCUnit):
     self.shape_add_element(shape=(unit_model.bottleneck_size,),
                            dtype=np.float32,
                            name='image')
+
+  def _transform(self, obj):
+    return [np.asarray(obj)]

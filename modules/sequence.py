@@ -16,8 +16,8 @@ class BasicRNNModule(UnitModule):
           cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=dropout_var)
           cells.append(cell)
 
-      sequence_length = input_tensor[-1]
-      data_tensor = input_tensor[:-1]
+      sequence_length = input_tensor[0]
+      data_tensor = input_tensor[1:]
 
       elem_cell = tf.contrib.rnn.MultiRNNCell(cells)
       output, state = tf.nn.dynamic_rnn(elem_cell,

@@ -8,10 +8,8 @@ class ConcatFCNModule(UnitModule):
     with tf.name_scope("ConcatFCNModule"):
       all_o = []
       for k in unit.key_list:
-        sub_input = [input_tensor[i] for i in unit.tensor_map[k]]
-        out = unit.struct[k].model(sub_input, dropout_var)
+        out = unit.struct[k].model(unit.get_sub_input(input_tensor, k), dropout_var)
         all_o.append(out)
-      print(all_o)
       merged_i = tf.concat(all_o, axis=1)
       merged_o = tf.contrib.layers.fully_connected(inputs=merged_i,
                                                    num_outputs=unit.vector_size)

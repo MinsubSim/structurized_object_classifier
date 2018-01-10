@@ -22,7 +22,7 @@ class SOCModel:
       for i in range(self.num_gpus):
         with tf.device('/gpu:%d' % i):
           with tf.name_scope('soc_%d' % (i)) as scope:
-            input_tensor = [tf.placeholder(shape=(None,)+s, dtype=t) for s, t in self.struct.tensor_shape]
+            input_tensor = [tf.placeholder(shape=(None,)+s['shape'], dtype=s['dtype']) for s in self.struct.tensor_shape]
             label_tensor = tf.placeholder(shape=[None], dtype=tf.int32)
             self.input_tensors.append(input_tensor)
             self.label_tensors.append(label_tensor)

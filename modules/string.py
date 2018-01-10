@@ -39,9 +39,12 @@ class BasicCNNModule(UnitModule):
     self.embedding_size = embedding_size
     self.filter_size = filter_size
 
-  def build(self, unit, input_tensor, dropout_var):
+  def build(self, unit, input_tensor, dropout_var, optional=True):
+    if optional:
+      existance = input_tensor.pop(0)
+    string_tensor = input_tensor[0]
+
     with tf.name_scope("BasicCNNModule"):
-      print('CHARDEPTH:', self.char_depth)
       emb_table = tf.get_variable('embedding',
                                   shape=(self.char_depth, self.embedding_size),
                                   initializer=tf.glorot_uniform_initializer())
@@ -54,7 +57,7 @@ class BasicCNNModule(UnitModule):
                              initializer=tf.constant_initializer(0.1))
 
       # Convolution Layer
-      embd_input = tf.nn.embedding_lookup(emb_table, input_tensor[0])
+      embd_input = tf.nn.embedding_lookup(emb_table, string_tensor)
       embd_input = tf.expand_dims(embd_input, -1)
 
       # Convolution Layer
@@ -67,12 +70,13 @@ class BasicCNNModule(UnitModule):
       biased= tf.nn.relu(tf.nn.bias_add(conv, bias), name='relu')
       # Max-pooling over the outputs
       string_length = unit.string_length
-      print(string_length, unit)
       pooled = tf.nn.max_pool(biased,
                               ksize=[1, string_length - self.filter_size + 1, 1, 1],
                               strides=[1, 1, 1, 1],
                               padding='VALID',
                               name='pool')
-      print(dropout_var)
       pooled = tf.nn.dropout(pooled, dropout_var)
-      return tf.squeeze(pooled, [1, 2])
+      result_vector = tf.squeeze(pooled, [1, 2])
+      if optional:
+        pass # TODO: combine existance to outputs
+      return result_vector

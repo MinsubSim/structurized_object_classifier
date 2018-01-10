@@ -43,12 +43,20 @@ class InceptionV3Module(UnitModule):
     else:
       return np.zeros(self.bottleneck_size)
 
-  def build(self, unit, input_tensor, dropout_var):
+  def build(self, unit, input_tensor, dropout_var, optional=True):
+    if optional:
+      existance = input_tensor[0]
+      image_tensor = input_tensor[1]
+      image_tensor = tf.concat([tf.cast(existance, tf.float32), image_tensor], axis=1)
+    else:
+      image_tensor = input_tensor[0]
+
     with tf.name_scope("InceptionV3Module"):
       W = tf.get_variable('W',
-                          shape=(self.bottleneck_size, self.vector_size),
+                          shape=(self.bottleneck_size + 1, unit.vector_size),
                           initializer=tf.glorot_normal_initializer())
       b = tf.get_variable('b',
-                          shape=(self.vector_size,),
+                          shape=(unit.vector_size,),
                           initializer=tf.glorot_normal_initializer())
-      return tf.matmul(input_tensor, W) + b
+      result = tf.matmul(image_tensor, W) + b
+      return result
