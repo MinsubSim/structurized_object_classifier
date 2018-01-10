@@ -6,4 +6,4 @@ class UnitModule:
   def build(self, input_tensor, dropout_var):
     pass
 
-from . import number, string, sequence, hashmap
+from . import number, string, sequence, hashmap, image

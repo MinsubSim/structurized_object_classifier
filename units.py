@@ -127,15 +127,10 @@ class SOCStringUnit(SOCUnit):
 class SOCImageUnit(SOCUnit):
   def __init__(self,
                vector_size,
-               unit_model,
-               image_width,
-               image_height,
-               image_depth,
+               unit_model):
                ):
     super(SOCImageUnit, self).__init__(vector_size, unit_model)
-
-  def model(self, input_tensor, dropout_var):
-    pass
+    self.tensor_shape = [(unit_model.bottleneck_size, )]
 
   def transform(self, obj):
-    pass
+    return self.unit_model.decode(obj)
