@@ -11,6 +11,6 @@ class ConcatFCNModule(UnitModule):
         out = unit.struct[k].model(unit.get_sub_input(input_tensor, k), dropout_var)
         all_o.append(out)
       merged_i = tf.concat(all_o, axis=1)
-      merged_o = tf.contrib.layers.fully_connected(inputs=merged_i,
-                                                   num_outputs=unit.vector_size)
-      return merged_o
+      #merged_o = tf.contrib.layers.fully_connected(inputs=merged_i,
+      #                                             num_outputs=unit.vector_size)
+      return merged_i

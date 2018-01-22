@@ -1,8 +1,8 @@
-sls =  [0, 1, 2, 4, 7]
 from units import *
 from model import *
 import modules
 import pickle
+import random
 
 import argparse
 
@@ -19,14 +19,17 @@ parser.add_argument('--image_vector', type=int)
 parser.add_argument('--learning_rate', type=float)
 parser.add_argument('--num_gpu', type=int)
 parser.add_argument('--drop_out', type=float)
+parser.add_argument('--loss_func', type=str)
 
 args = parser.parse_args()
+print(args)
 
 selected_labels =  [0, 1, 2, 3, 4, 7]
 
-with open('soc_Objs', 'rb') as f:
+with open('soc_Objs2', 'rb') as f:
     objs = pickle.load(f)
 print('insert finish')
+random.shuffle(objs)
 
 tf.reset_default_graph()
 obj_structure = SOCListUnit(
@@ -57,33 +60,31 @@ obj_structure = SOCListUnit(
     })
     )
 
-soc_model = SOCModel(struct=obj_structure, dropout_prob=args.drop_out, label_size=len(sls), learning_rate=args.learning_rate, num_gpus=args.num_gpu)
+soc_model = SOCModel(struct=obj_structure, dropout_prob=args.drop_out, label_size=len(selected_labels), learning_rate=args.learning_rate, num_gpus=args.num_gpu, loss_func=args.loss_func)
 
 print('start!', flush=True)
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 config.allow_soft_placement = True
 
+saver = tf.train.Saver(tf.global_variables())
+
 with tf.Session(config=config) as sess:
   init = tf.global_variables_initializer()
   sess.run(init)
 
-  for idx in range(11):
+  for idx in range(10):
     tobjs = objs[:5000]
     del objs[:5000]
     input_data, label_data, meta_data = zip(*tobjs)
     soc_model.insert(input_data, label_data, meta_data)
-    for i in range(250):
-      tt = soc_model.train(sess, 10)
-      print(idx,i,tt[0], flush=True)
-
-  
-  tobjs = objs[:5000]
-  del objs[:5000]
-  input_data, label_data, meta_data = zip(*tobjs)
-  soc_model.insert(input_data, label_data, meta_data)
-  for i in range(250):
-    tt = soc_model.eval(sess, 10)
-    print('eval',i,tt[0], flush=True)
+    for i in range(500):
+      tt = soc_model.train(sess, 5)
+      _, loss, acc, pred = tt[0]
+      print(idx, i, acc, flush=True)
+      print(loss)
+      for x in zip(tt[1], pred, tt[2]):
+          print(x, flush=True)
+    saver.save(sess, 'my-model', global_step=idx)
 
 
