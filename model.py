@@ -2,8 +2,18 @@ from units import *
 import numpy
 
 
+class SOCTower:
+  def __init__(self):
+    print(haha)
+
+
+#TODO: 이게 구지 필요한가
+#TODO: 이거까지 예제로 만들자
+#TODO: 데이터 뽑는건 다른 라이브러리 pandas같은걸 사용
+
+
 class SOCModel:
-  def __init__(self, struct, label_size, dropout_prob, learning_rate, num_gpus, loss_func):
+  def __init__(self, struct, label_size, learning_rate, device=['/cpu:0'], loss_func='softmax'):
     self.struct = struct
     self.data_stack = []
     self.dropout_prob = dropout_prob
