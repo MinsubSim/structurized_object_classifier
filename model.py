@@ -1,11 +1,5 @@
-from units import *
-import numpy
-
-
-class SOCTower:
-  def __init__(self):
-    print(haha)
-
+import tensorflow as tf
+import numpy as np
 
 #TODO: 이게 구지 필요한가
 #TODO: 이거까지 예제로 만들자
@@ -16,7 +10,6 @@ class SOCModel:
   def __init__(self, struct, label_size, learning_rate, device=['/cpu:0'], loss_func='softmax'):
     self.struct = struct
     self.data_stack = []
-    self.dropout_prob = dropout_prob
     self.dropout_var = tf.placeholder(dtype=tf.float32)
     self.label_size = label_size
     self.num_gpus = num_gpus
@@ -94,7 +87,7 @@ class SOCModel:
       label_list += label_data
       feed_dict[self.label_tensors[gpu_idx]] = label_data
       for x, y in zip(self.input_tensors[gpu_idx], input_data):
-        feed_dict[x] = numpy.asarray(y, x.dtype.as_numpy_dtype)
+        feed_dict[x] = np.asarray(y, x.dtype.as_numpy_dtype)
     res = sess.run(self.eval_set, feed_dict=feed_dict)
     return res, label_list, meta_list
 

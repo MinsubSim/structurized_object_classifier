@@ -40,20 +40,16 @@ obj_structure = SOCListUnit(
     vector_size=args.dict_vector,
     unit_model=modules.hashmap.ConcatFCNModule(),
     struct={
-      'u': SOCIntegerUnit(vector_size=2,
-                          unit_model=modules.number.OneHotModule()),
-      's': SOCIntegerUnit(vector_size=5,
-                          unit_model=modules.number.ExpansionModule()),
-      'm': SOCStringUnit(vector_size=args.string_vector,
-                         unit_model=modules.string.BasicCNNModule(char_depth=11682,
+      'u': SOCIntegerUnit(unit_model=modules.number.OneHotModule(num_units=100)),
+      's': SOCIntegerUnit(unit_model=modules.number.ExpansionModule()),
+      'm': SOCStringUnit(unit_model=modules.string.BasicCNNModule(char_depth=11682,
                                                                   embedding_size=args.string_embedding,
                                                                   filter_size=args.string_filter),
                          string_encoder=modules.string.string_encode,
                          string_length=args.string_length,
                          optional=True,
                          ),
-      'img': SOCImageUnit(vector_size=args.image_vector,
-                          unit_model=modules.image.InceptionV3Module(model_path='classify_image_graph_def.pb'),
+      'img': SOCImageUnit(unit_model=modules.image.InceptionV3Module(model_path='classify_image_graph_def.pb'),
                           base_dir='files',
                           optional=True,
                           )
@@ -86,5 +82,3 @@ with tf.Session(config=config) as sess:
       for x in zip(tt[1], pred, tt[2]):
           print(x, flush=True)
     saver.save(sess, 'my-model', global_step=idx)
-
-

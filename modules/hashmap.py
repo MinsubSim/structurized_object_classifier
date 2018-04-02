@@ -4,13 +4,12 @@ from . import UnitModule
 
 
 class ConcatFCNModule(UnitModule):
-  def build(self, unit, input_tensor, dropout_var):
-    with tf.name_scope("ConcatFCNModule"):
-      all_o = []
-      for k in unit.key_list:
-        out = unit.struct[k].model(unit.get_sub_input(input_tensor, k), dropout_var)
-        all_o.append(out)
-      merged_i = tf.concat(all_o, axis=1)
-      #merged_o = tf.contrib.layers.fully_connected(inputs=merged_i,
-      #                                             num_outputs=unit.vector_size)
-      return merged_i
+    def build(self, feature, input_tensor, state):
+        all_output = []
+        for k in feature.key_list:
+            elem_input = [input_tensor[i] for i in feature.elem_index(k)]
+            output, state = feature.struct[k](elem_input, state)
+            all_output.append(output)
+        fcl_res = tf.contrib.layers.fully_connected(inputs=tf.concat(all_output, axis=1),
+                                                    num_outputs=self.num_units)
+        return tf.contrib.layers.dropout(inputs=fcl_res, keep_prob=feature.dropout_var), state
