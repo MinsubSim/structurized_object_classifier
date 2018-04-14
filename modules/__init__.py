@@ -3,7 +3,7 @@ import tensorflow as tf
 
 
 class UnitModule:
-    def __init__(self, num_units, dropout_val=0.9):
+    def __init__(self, num_units, dropout_val=0.97):
         self.num_units = num_units
         self.dropout_val = dropout_val
 

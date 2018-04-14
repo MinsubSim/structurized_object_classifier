@@ -12,7 +12,7 @@ class BasicCNNModule(UnitModule):
     def build(self, feature, input_tensor, state):
         char_depth = feature.char_depth
         string_length = feature.string_length
-        string_tensor = input_tensor[1:]
+        string_tensor = input_tensor[1]
 
         emb_table = tf.get_variable('embedding',
                                     shape=(char_depth, self.embedding_size),
@@ -38,21 +38,30 @@ class BasicCNNModule(UnitModule):
                                 strides=[1, 1, 1, 1],
                                 padding='VALID',
                                 name='pool')
-        pooled = tf.nn.dropout(pooled, self.dropout_var)
+        pooled = tf.nn.dropout(pooled, feature.dropout_var)
         result_vector = tf.squeeze(pooled, [1, 2])
         return result_vector, state
 
 
 class WordLayerModule(UnitModule):
     def build(self, feature, input_tensor, state):
-        string_tensor = tf.cast(input_tensor[1:], tf.int32)
+        string_length = input_tensor[0]
+        string_tensor = tf.cast(input_tensor[1], tf.int32)
         word_layer = tf.get_variable('word_layer',
                                       shape=(feature.vector_depth, self.num_units, self.num_units),
                                       initializer=tf.glorot_uniform_initializer())
-
+        identity = tf.expand_dims(tf.eye(self.num_units), 0)
+        word_layer = tf.concat([word_layer, identity], 0)
+        gathered = tf.gather(word_layer, string_tensor)
         bias = tf.get_variable('bias',
                                shape=(1, self.num_units,),
                                initializer=tf.glorot_uniform_initializer())
-
-        reduce_prod = tf.reduce_prod(tf.gather(word_layer, string_tensor), axis=0)
-        return tf.matmul(state, reduce_prod) + bias
+        reduce_prod = tf.reduce_prod(gathered, axis=1)
+        
+        #state = tf.contrib.layers.fully_connected(inputs=state, num_outputs=self.num_units)
+        batch_size = tf.shape(string_tensor)[0]
+        state = tf.ones([batch_size, self.num_units], tf.float32)
+        output = tf.matmul(tf.expand_dims(state, 1), reduce_prod) + bias
+        output = tf.squeeze(output, [1])
+        self.test1 = output
+        return output, state

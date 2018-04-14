@@ -16,11 +16,20 @@ class SOCStringFeature(SOCFeature):
         self.vector_depth = vector_depth
         self.string_length = string_length
         self.string_vectorizer = string_vectorizer
+        self.add_element(shape=[1], dtype=tf.int32, name='str_len')
         self.add_element(shape=[string_length],
-                         dtype=np.int32,
+                         dtype=tf.int32,
                          name='string')
 
-    def _transform(self, obj):
+    def transform(self, obj):
+        output = [[len(obj)]]
         if self.string_vectorizer is None:
-            return [np.asarray(obj)]
-        return [np.asarray(self.string_encoder(obj[-self.string_length:], self.string_length))]
+            output.append(obj + [self.vector_depth] * (self.string_length - len(obj)))
+        else:
+            t = obj.map(lambda x: self.string_vectorizer(x[-self.string_length:], self.string_length))
+            t += [self.vector_depth] * (self.string_length - len(t))
+        return output
+
+    
+    def zeros(self):
+        return [[0], [self.vector_depth] * self.string_length]
